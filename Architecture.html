@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Code Architecture</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            color: #333;
+        }
+        pre {
+            background-color: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            tab-size: 4;
+            -moz-tab-size: 4;
+            white-space: pre-wrap; /* Ensures lines wrap if too long */
+            word-break: break-all; /* Breaks words if necessary to prevent overflow */
+        }
+        .comment { color: #5c6370; font-style: italic; }
+        .keyword { color: #c678dd; }
+        .type { color: #e5c07b; }
+        .string { color: #98c379; }
+        .number { color: #d19a66; }
+        .annotation { color: #61afef; }
+        .method { color: #61afef; }
+        .variable { color: #e06c75; }
+        .operator { color: #56b6c2; }
+        .class-name { color: #e5c07b; }
+        .constant { color: #56b6c2; }
+        .primitive { color: #c678dd; } /* For primitive types like int, double */
+        .boolean { color: #d19a66; }
+        .highlight-comment { color: #ff5555; font-weight: bold; } /* For PROBLEM comments */
+        .summary-header { color: #61afef; font-weight: bold; margin-top: 20px;}
+        .summary-item { margin-left: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Java Code Architecture and Tests Analysis</h1>
+<pre><code class="java">
+<span class="comment">// ===== STRUKTURA PROJEKTU =====</span>
+<span class="comment">// src/main/java/</span>
+<span class="comment">//   domain/</span>
+<span class="comment">//     Order.java</span>
+<span class="comment">//     Product.java</span>
+<span class="comment">//     OrderItem.java</span>
+<span class="comment">//     OrderStatus.java</span>
+<span class="comment">//   application/</span>
+<span class="comment">//     OrderService.java</span>
+<span class="comment">//     ProductService.java</span>
+<span class="comment">//   infrastructure/</span>
+<span class="comment">//     OrderRepository.java</span>
+<span class="comment">//     ProductRepository.java</span>
+<span class="comment">//   presentation/</span>
+<span class="comment">//     OrderController.java</span>
+
+<span class="comment">// ===== DOMAIN LAYER =====</span>
+
+<span class="comment">// src/main/java/domain/OrderStatus.java</span>
+<span class="keyword">public</span> <span class="keyword">enum</span> <span class="class-name">OrderStatus</span> {
+    <span class="constant">PENDING</span>,
+    <span class="constant">PROCESSING</span>,
+    <span class="constant">COMPLETED</span>,
+    <span class="constant">CANCELLED</span>
+}
+
+<span class="comment">// src/main/java/domain/OrderItem.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">OrderItem</span> {
+    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">productId</span>;
+    <span class="keyword">private</span> <span class="primitive">int</span> <span class="variable">quantity</span>;
+    <span class="keyword">private</span> <span class="primitive">double</span> <span class="variable">price</span>;
+
+    <span class="keyword">public</span> <span class="method">OrderItem</span>(<span class="type">String</span> <span class="variable">productId</span>, <span class="primitive">int</span> <span class="variable">quantity</span>, <span class="primitive">double</span> <span class="variable">price</span>) {
+        <span class="keyword">this</span>.<span class="variable">productId</span> = <span class="variable">productId</span>;
+        <span class="keyword">this</span>.<span class="variable">quantity</span> = <span class="variable">quantity</span>;
+        <span class="keyword">this</span>.<span class="variable">price</span> = <span class="variable">price</span>;
+    }
+
+    <span class="comment">// Getters and setters</span>
+    <span class="keyword">public</span> <span class="type">String</span> <span class="method">getProductId</span>() { <span class="keyword">return</span> <span class="variable">productId</span>; }
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">setProductId</span>(<span class="type">String</span> <span class="variable">productId</span>) { <span class="keyword">this</span>.<span class="variable">productId</span> = <span class="variable">productId</span>; }
+    
+    <span class="keyword">public</span> <span class="primitive">int</span> <span class="method">getQuantity</span>() { <span class="keyword">return</span> <span class="variable">quantity</span>; }
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">setQuantity</span>(<span class="primitive">int</span> <span class="variable">quantity</span>) { <span class="keyword">this</span>.<span class="variable">quantity</span> = <span class="variable">quantity</span>; }
+    
+    <span class="keyword">public</span> <span class="primitive">double</span> <span class="method">getPrice</span>() { <span class="keyword">return</span> <span class="variable">price</span>; }
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">setPrice</span>(<span class="primitive">double</span> <span class="variable">price</span>) { <span class="keyword">this</span>.<span class="variable">price</span> = <span class="variable">price</span>; }
+}
+
+<span class="comment">// src/main/java/domain/Order.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">Order</span> {
+    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">id</span>;
+    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">customerId</span>;
+    <span class="keyword">private</span> <span class="type">List</span>&lt;<span class="class-name">OrderItem</span>&gt; <span class="variable">items</span>;
+    <span class="keyword">private</span> <span class="class-name">OrderStatus</span> <span class="variable">status</span>;
+    <span class="keyword">private</span> <span class="primitive">double</span> <span class="variable">totalAmount</span>;
+
+    <span class="keyword">public</span> <span class="method">Order</span>(<span class="type">String</span> <span class="variable">id</span>, <span class="type">String</span> <span class="variable">customerId</span>, <span class="type">List</span>&lt;<span class="class-name">OrderItem</span>&gt; <span class="variable">items</span>) {
+        <span class="keyword">this</span>.<span class="variable">id</span> = <span class="variable">id</span>;
+        <span class="keyword">this</span>.<span class="variable">customerId</span> = <span class="variable">customerId</span>;
+        <span class="keyword">this</span>.<span class="variable">items</span> = <span class="variable">items</span> != <span class="keyword">null</span> ? <span class="variable">items</span> : <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;();
+        <span class="keyword">this</span>.<span class="variable">status</span> = <span class="class-name">OrderStatus</span>.<span class="constant">PENDING</span>;
+        <span class="keyword">this</span>.<span class="variable">totalAmount</span> = <span class="number">0.0</span>;
+        <span class="method">calculateTotal</span>();
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">addItem</span>(<span class="class-name">Product</span> <span class="variable">product</span>, <span class="primitive">int</span> <span class="variable">quantity</span>) {
+        <span class="keyword">if</span> (<span class="variable">quantity</span> <span class="operator">&lt;=</span> <span class="number">0</span>) {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class-name">IllegalArgumentException</span>(<span class="string">"Quantity must be positive"</span>);
+        }
+        
+        <span class="keyword">if</span> (<span class="operator">!</span><span class="variable">product</span>.<span class="method">isAvailable</span>(<span class="variable">quantity</span>)) {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class-name">IllegalStateException</span>(<span class="string">"Insufficient stock"</span>);
+        }
+
+        <span class="type">Optional</span>&lt;<span class="class-name">OrderItem</span>&gt; <span class="variable">existingItem</span> = <span class="variable">items</span>.<span class="method">stream</span>()
+            .<span class="method">filter</span>(<span class="variable">item</span> <span class="operator">-></span> <span class="variable">item</span>.<span class="method">getProductId</span>().<span class="method">equals</span>(<span class="variable">product</span>.<span class="method">getId</span>()))
+            .<span class="method">findFirst</span>();
+        
+        <span class="keyword">if</span> (<span class="variable">existingItem</span>.<span class="method">isPresent</span>()) {
+            <span class="variable">existingItem</span>.<span class="method">get</span>().<span class="method">setQuantity</span>(<span class="variable">existingItem</span>.<span class="method">get</span>().<span class="method">getQuantity</span>() <span class="operator">+</span> <span class="variable">quantity</span>);
+        } <span class="keyword">else</span> {
+            <span class="variable">items</span>.<span class="method">add</span>(<span class="keyword">new</span> <span class="class-name">OrderItem</span>(<span class="variable">product</span>.<span class="method">getId</span>(), <span class="variable">quantity</span>, <span class="variable">product</span>.<span class="method">getPrice</span>()));
+        }
+        
+        <span class="method">calculateTotal</span>();
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">removeItem</span>(<span class="type">String</span> <span class="variable">productId</span>) {
+        <span class="variable">items</span>.<span class="method">removeIf</span>(<span class="variable">item</span> <span class="operator">-></span> <span class="variable">item</span>.<span class="method">getProductId</span>().<span class="method">equals</span>(<span class="variable">productId</span>));
+        <span class="method">calculateTotal</span>();
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">applyDiscount</span>(<span class="primitive">double</span> <span class="variable">discountPercentage</span>) {
+        <span class="keyword">if</span> (<span class="variable">discountPercentage</span> <span class="operator">&lt;</span> <span class="number">0</span> <span class="operator">||</span> <span class="variable">discountPercentage</span> <span class="operator">></span> <span class="number">100</span>) {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class-name">IllegalArgumentException</span>(<span class="string">"Invalid discount percentage"</span>);
+        }
+        
+        <span class="keyword">this</span>.<span class="variable">totalAmount</span> = <span class="keyword">this</span>.<span class="variable">totalAmount</span> <span class="operator">*</span> (<span class="number">1</span> <span class="operator">-</span> <span class="variable">discountPercentage</span> <span class="operator">/</span> <span class="number">100</span>);
+    }
+
+    <span class="keyword">public</span> <span class="primitive">boolean</span> <span class="method">canBeProcessed</span>() {
+        <span class="keyword">return</span> <span class="variable">status</span> <span class="operator">==</span> <span class="class-name">OrderStatus</span>.<span class="constant">PENDING</span> <span class="operator">&amp;&amp;</span> 
+               <span class="operator">!</span><span class="variable">items</span>.<span class="method">isEmpty</span>() <span class="operator">&amp;&amp;</span> 
+               <span class="variable">totalAmount</span> <span class="operator">></span> <span class="number">0</span>;
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">process</span>() {
+        <span class="keyword">if</span> (<span class="operator">!</span><span class="method">canBeProcessed</span>()) {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class-name">IllegalStateException</span>(<span class="string">"Order cannot be processed"</span>);
+        }
+        <span class="keyword">this</span>.<span class="variable">status</span> = <span class="class-name">OrderStatus</span>.<span class="constant">PROCESSING</span>;
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">complete</span>() {
+        <span class="keyword">if</span> (<span class="variable">status</span> <span class="operator">!=</span> <span class="class-name">OrderStatus</span>.<span class="constant">PROCESSING</span>) {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class-name">IllegalStateException</span>(<span class="string">"Order must be processing to complete"</span>);
+        }
+        <span class="keyword">this</span>.<span class="variable">status</span> = <span class="class-name">OrderStatus</span>.<span class="constant">COMPLETED</span>;
+    }
+
+    <span class="keyword">private</span> <span class="keyword">void</span> <span class="method">calculateTotal</span>() {
+        <span class="keyword">this</span>.<span class="variable">totalAmount</span> = <span class="variable">items</span>.<span class="method">stream</span>()
+            .<span class="method">mapToDouble</span>(<span class="variable">item</span> <span class="operator">-></span> <span class="variable">item</span>.<span class="method">getPrice</span>() <span class="operator">*</span> <span class="variable">item</span>.<span class="method">getQuantity</span>())
+            .<span class="method">sum</span>();
+    }
+
+    <span class="comment">// Getters and setters</span>
+    <span class="keyword">public</span> <span class="type">String</span> <span class="method">getId</span>() { <span class="keyword">return</span> <span class="variable">id</span>; }
+    <span class="keyword">public</span> <span class="type">String</span> <span class="method">getCustomerId</span>() { <span class="keyword">return</span> <span class="variable">customerId</span>; }
+    <span class="keyword">public</span> <span class="type">List</span>&lt;<span class="class-name">OrderItem</span>&gt; <span class="method">getItems</span>() { <span class="keyword">return</span> <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;(<span class="variable">items</span>); }
+    <span class="keyword">public</span> <span class="class-name">OrderStatus</span> <span class="method">getStatus</span>() { <span class="keyword">return</span> <span class="variable">status</span>; }
+    <span class="keyword">public</span> <span class="primitive">double</span> <span class="method">getTotalAmount</span>() { <span class="keyword">return</span> <span class="variable">totalAmount</span>; }
+}
+
+<span class="comment">// src/main/java/domain/Product.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">Product</span> {
+    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">id</span>;
+    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">name</span>;
+    <span class="keyword">private</span> <span class="primitive">double</span> <span class="variable">price</span>;
+    <span class="keyword">private</span> <span class="primitive">int</span> <span class="variable">stock</span>;
+
+    <span class="keyword">public</span> <span class="method">Product</span>(<span class="type">String</span> <span class="variable">id</span>, <span class="type">String</span> <span class="variable">name</span>, <span class="primitive">double</span> <span class="variable">price</span>, <span class="primitive">int</span> <span class="variable">stock</span>) {
+        <span class="keyword">this</span>.<span class="variable">id</span> = <span class="variable">id</span>;
+        <span class="keyword">this</span>.<span class="variable">name</span> = <span class="variable">name</span>;
+        <span class="keyword">this</span>.<span class="variable">price</span> = <span class="variable">price</span>;
+        <span class="keyword">this</span>.<span class="variable">stock</span> = <span class="variable">stock</span>;
+    }
+
+    <span class="keyword">public</span> <span class="primitive">boolean</span> <span class="method">isAvailable</span>(<span class="primitive">int</span> <span class="variable">requestedQuantity</span>) {
+        <span class="keyword">return</span> <span class="keyword">this</span>.<span class="variable">stock</span> <span class="operator">>=</span> <span class="variable">requestedQuantity</span>;
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">reserveStock</span>(<span class="primitive">int</span> <span class="variable">quantity</span>) {
+        <span class="keyword">if</span> (<span class="operator">!</span><span class="method">isAvailable</span>(<span class="variable">quantity</span>)) {
+            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="class-name">IllegalStateException</span>(<span class="string">"Insufficient stock"</span>);
+        }
+        <span class="keyword">this</span>.<span class="variable">stock</span> <span class="operator">-=</span> <span class="variable">quantity</span>;
+    }
+
+    <span class="comment">// Getters and setters</span>
+    <span class="keyword">public</span> <span class="type">String</span> <span class="method">getId</span>() { <span class="keyword">return</span> <span class="variable">id</span>; }
+    <span class="keyword">public</span> <span class="type">String</span> <span class="method">getName</span>() { <span class="keyword">return</span> <span class="variable">name</span>; }
+    <span class="keyword">public</span> <span class="primitive">double</span> <span class="method">getPrice</span>() { <span class="keyword">return</span> <span class="variable">price</span>; }
+    <span class="keyword">public</span> <span class="primitive">int</span> <span class="method">getStock</span>() { <span class="keyword">return</span> <span class="variable">stock</span>; }
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">setStock</span>(<span class="primitive">int</span> <span class="variable">stock</span>) { <span class="keyword">this</span>.<span class="variable">stock</span> = <span class="variable">stock</span>; }
+}
+
+<span class="comment">// ===== APPLICATION LAYER =====</span>
+
+<span class="comment">// src/main/java/application/OrderItemRequest.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">OrderItemRequest</span> {
+    <span class="keyword">private</span> <span class="type">String</span> <span class="variable">productId</span>;
+    <span class="keyword">private</span> <span class="primitive">int</span> <span class="variable">quantity</span>;
+    
+    <span class="keyword">public</span> <span class="method">OrderItemRequest</span>(<span class="type">String</span> <span class="variable">productId</span>, <span class="primitive">int</span> <span class="variable">quantity</span>) {
+        <span class="keyword">this</span>.<span class="variable">productId</span> = <span class="variable">productId</span>;
+        <span class="keyword">this</span>.<span class="variable">quantity</span> = <span class="variable">quantity</span>;
+    }
+    
+    <span class="comment">// Getters</span>
+    <span class="keyword">public</span> <span class="type">String</span> <span class="method">getProductId</span>() { <span class="keyword">return</span> <span class="variable">productId</span>; }
+    <span class="keyword">public</span> <span class="primitive">int</span> <span class="method">getQuantity</span>() { <span class="keyword">return</span> <span class="variable">quantity</span>; }
+}
+
+<span class="comment">// src/main/java/application/OrderService.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">OrderService</span> {
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="class-name">OrderRepository</span> <span class="variable">orderRepository</span>;
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="class-name">ProductService</span> <span class="variable">productService</span>;
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="class-name">EmailService</span> <span class="variable">emailService</span>;
+
+    <span class="keyword">public</span> <span class="method">OrderService</span>(<span class="class-name">OrderRepository</span> <span class="variable">orderRepository</span>, 
+                       <span class="class-name">ProductService</span> <span class="variable">productService</span>, 
+                       <span class="class-name">EmailService</span> <span class="variable">emailService</span>) {
+        <span class="keyword">this</span>.<span class="variable">orderRepository</span> = <span class="variable">orderRepository</span>;
+        <span class="keyword">this</span>.<span class="variable">productService</span> = <span class="variable">productService</span>;
+        <span class="keyword">this</span>.<span class="variable">emailService</span> = <span class="variable">emailService</span>;
+    }
+
+    <span class="keyword">public</span> <span class="class-name">Order</span> <span class="method">createOrder</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span>) {
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="method">generateOrderId</span>(), <span class="variable">customerId</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        
+        <span class="keyword">for</span> (<span class="class-name">OrderItemRequest</span> <span class="variable">item</span> : <span class="variable">items</span>) {
+            <span class="class-name">Product</span> <span class="variable">product</span> = <span class="variable">productService</span>.<span class="method">getProduct</span>(<span class="variable">item</span>.<span class="method">getProductId</span>());
+            <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="variable">item</span>.<span class="method">getQuantity</span>());
+        }
+
+        <span class="variable">orderRepository</span>.<span class="method">save</span>(<span class="variable">order</span>);
+        <span class="variable">emailService</span>.<span class="method">sendOrderConfirmation</span>(<span class="variable">customerId</span>, <span class="variable">order</span>);
+        
+        <span class="keyword">return</span> <span class="variable">order</span>;
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">processOrder</span>(<span class="type">String</span> <span class="variable">orderId</span>) {
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="variable">orderRepository</span>.<span class="method">findById</span>(<span class="variable">orderId</span>)
+            .<span class="method">orElseThrow</span>(() <span class="operator">-></span> <span class="keyword">new</span> <span class="class-name">IllegalArgumentException</span>(<span class="string">"Order not found"</span>));
+
+        <span class="comment">// Reserve stock for all items</span>
+        <span class="keyword">for</span> (<span class="class-name">OrderItem</span> <span class="variable">item</span> : <span class="variable">order</span>.<span class="method">getItems</span>()) {
+            <span class="class-name">Product</span> <span class="variable">product</span> = <span class="variable">productService</span>.<span class="method">getProduct</span>(<span class="variable">item</span>.<span class="method">getProductId</span>());
+            <span class="variable">product</span>.<span class="method">reserveStock</span>(<span class="variable">item</span>.<span class="method">getQuantity</span>());
+            <span class="variable">productService</span>.<span class="method">updateProduct</span>(<span class="variable">product</span>);
+        }
+
+        <span class="variable">order</span>.<span class="method">process</span>();
+        <span class="variable">orderRepository</span>.<span class="method">save</span>(<span class="variable">order</span>);
+        <span class="variable">emailService</span>.<span class="method">sendProcessingNotification</span>(<span class="variable">order</span>.<span class="method">getCustomerId</span>(), <span class="variable">order</span>);
+    }
+
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">completeOrder</span>(<span class="type">String</span> <span class="variable">orderId</span>) {
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="variable">orderRepository</span>.<span class="method">findById</span>(<span class="variable">orderId</span>)
+            .<span class="method">orElseThrow</span>(() <span class="operator">-></span> <span class="keyword">new</span> <span class="class-name">IllegalArgumentException</span>(<span class="string">"Order not found"</span>));
+
+        <span class="variable">order</span>.<span class="method">complete</span>();
+        <span class="variable">orderRepository</span>.<span class="method">save</span>(<span class="variable">order</span>);
+        <span class="variable">emailService</span>.<span class="method">sendCompletionNotification</span>(<span class="variable">order</span>.<span class="method">getCustomerId</span>(), <span class="variable">order</span>);
+    }
+    
+    <span class="keyword">public</span> <span class="class-name">Order</span> <span class="method">findById</span>(<span class="type">String</span> <span class="variable">orderId</span>) {
+        <span class="keyword">return</span> <span class="variable">orderRepository</span>.<span class="method">findById</span>(<span class="variable">orderId</span>)
+            .<span class="method">orElseThrow</span>(() <span class="operator">-></span> <span class="keyword">new</span> <span class="class-name">IllegalArgumentException</span>(<span class="string">"Order not found"</span>));
+    }
+
+    <span class="keyword">private</span> <span class="type">String</span> <span class="method">generateOrderId</span>() {
+        <span class="keyword">return</span> <span class="string">"ORDER-"</span> <span class="operator">+</span> <span class="class-name">System</span>.<span class="method">currentTimeMillis</span>() <span class="operator">+</span> <span class="string">"-"</span> <span class="operator">+</span> 
+               <span class="class-name">Integer</span>.<span class="method">toHexString</span>((<span class="primitive">int</span>)(<span class="class-name">Math</span>.<span class="method">random</span>() <span class="operator">*</span> <span class="number">0x1000000</span>));
+    }
+}
+
+<span class="comment">// src/main/java/application/ProductService.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">ProductService</span> {
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="class-name">ProductRepository</span> <span class="variable">productRepository</span>;
+    
+    <span class="keyword">public</span> <span class="method">ProductService</span>(<span class="class-name">ProductRepository</span> <span class="variable">productRepository</span>) {
+        <span class="keyword">this</span>.<span class="variable">productRepository</span> = <span class="variable">productRepository</span>;
+    }
+    
+    <span class="keyword">public</span> <span class="class-name">Product</span> <span class="method">getProduct</span>(<span class="type">String</span> <span class="variable">productId</span>) {
+        <span class="keyword">return</span> <span class="variable">productRepository</span>.<span class="method">findById</span>(<span class="variable">productId</span>)
+            .<span class="method">orElseThrow</span>(() <span class="operator">-></span> <span class="keyword">new</span> <span class="class-name">IllegalArgumentException</span>(<span class="string">"Product not found"</span>));
+    }
+    
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">updateProduct</span>(<span class="class-name">Product</span> <span class="variable">product</span>) {
+        <span class="variable">productRepository</span>.<span class="method">save</span>(<span class="variable">product</span>);
+    }
+}
+
+<span class="comment">// src/main/java/application/EmailService.java</span>
+<span class="keyword">public</span> <span class="keyword">interface</span> <span class="class-name">EmailService</span> {
+    <span class="keyword">void</span> <span class="method">sendOrderConfirmation</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="class-name">Order</span> <span class="variable">order</span>);
+    <span class="keyword">void</span> <span class="method">sendProcessingNotification</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="class-name">Order</span> <span class="variable">order</span>);
+    <span class="keyword">void</span> <span class="method">sendCompletionNotification</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="class-name">Order</span> <span class="variable">order</span>);
+}
+
+
+<span class="comment">// ===== PROBLEMATYCZNE TESTY =====</span>
+
+<span class="comment">// src/test/java/OrderServiceTest.java</span>
+<span class="annotation">@ExtendWith</span>(<span class="class-name">MockitoExtension</span>.<span class="keyword">class</span>)
+<span class="keyword">class</span> <span class="class-name">OrderServiceTest</span> {
+    
+    <span class="annotation">@Mock</span>
+    <span class="keyword">private</span> <span class="class-name">OrderRepository</span> <span class="variable">mockOrderRepository</span>;
+    
+    <span class="annotation">@Mock</span>
+    <span class="keyword">private</span> <span class="class-name">ProductService</span> <span class="variable">mockProductService</span>;
+    
+    <span class="annotation">@Mock</span>
+    <span class="keyword">private</span> <span class="class-name">EmailService</span> <span class="variable">mockEmailService</span>;
+    
+    <span class="annotation">@InjectMocks</span>
+    <span class="keyword">private</span> <span class="class-name">OrderService</span> <span class="variable">orderService</span>;
+
+    <span class="comment">// PROBLEM 1: Zbyt dużo mocków - testujemy implementację, nie zachowanie</span>
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCreateOrderWithMultipleItemsAndSendConfirmation</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Product</span> <span class="variable">product1</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"1"</span>, <span class="string">"Product 1"</span>, <span class="number">10.0</span>, <span class="number">100</span>);
+        <span class="class-name">Product</span> <span class="variable">product2</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"2"</span>, <span class="string">"Product 2"</span>, <span class="number">20.0</span>, <span class="number">50</span>);
+        
+        <span class="class-name">when</span>(<span class="variable">mockProductService</span>.<span class="method">getProduct</span>(<span class="string">"1"</span>)).<span class="method">thenReturn</span>(<span class="variable">product1</span>);
+        <span class="class-name">when</span>(<span class="variable">mockProductService</span>.<span class="method">getProduct</span>(<span class="string">"2"</span>)).<span class="method">thenReturn</span>(<span class="variable">product2</span>);
+        
+        <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"1"</span>, <span class="number">2</span>),
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"2"</span>, <span class="number">1</span>)
+        );
+
+        <span class="comment">// When</span>
+        <span class="class-name">Order</span> <span class="variable">result</span> = <span class="variable">orderService</span>.<span class="method">createOrder</span>(<span class="string">"customer1"</span>, <span class="variable">items</span>);
+
+        <span class="comment">// Then</span>
+        <span class="class-name">verify</span>(<span class="variable">mockProductService</span>, <span class="class-name">times</span>(<span class="number">2</span>)).<span class="method">getProduct</span>(<span class="class-name">anyString</span>());
+        <span class="class-name">verify</span>(<span class="variable">mockOrderRepository</span>, <span class="class-name">times</span>(<span class="number">1</span>)).<span class="method">save</span>(<span class="class-name">any</span>(<span class="class-name">Order</span>.<span class="keyword">class</span>));
+        <span class="class-name">verify</span>(<span class="variable">mockEmailService</span>, <span class="class-name">times</span>(<span class="number">1</span>)).<span class="method">sendOrderConfirmation</span>(<span class="class-name">eq</span>(<span class="string">"customer1"</span>), <span class="class-name">any</span>(<span class="class-name">Order</span>.<span class="keyword">class</span>));
+        
+        <span class="class-name">assertThat</span>(<span class="variable">result</span>.<span class="method">getTotalAmount</span>()).<span class="method">isEqualTo</span>(<span class="number">40.0</span>); <span class="comment">// 2*10 + 1*20</span>
+        <span class="class-name">assertThat</span>(<span class="variable">result</span>.<span class="method">getItems</span>()).<span class="method">hasSize</span>(<span class="number">2</span>);
+    }
+
+    <span class="comment">// PROBLEM 2: Test kruchy - zmiana w implementacji psuje test</span>
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldProcessOrderAndReserveStock</span>() {
+        <span class="comment">// Given</span>
+        <span class="type">List</span>&lt;<span class="class-name">OrderItem</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItem</span>(<span class="string">"product1"</span>, <span class="number">2</span>, <span class="number">10.0</span>)
+        );
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"order1"</span>, <span class="string">"customer1"</span>, <span class="variable">items</span>);
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"product1"</span>, <span class="string">"Test Product"</span>, <span class="number">10.0</span>, <span class="number">100</span>);
+
+        <span class="class-name">when</span>(<span class="variable">mockOrderRepository</span>.<span class="method">findById</span>(<span class="string">"order1"</span>)).<span class="method">thenReturn</span>(<span class="class-name">Optional</span>.<span class="method">of</span>(<span class="variable">order</span>));
+        <span class="class-name">when</span>(<span class="variable">mockProductService</span>.<span class="method">getProduct</span>(<span class="string">"product1"</span>)).<span class="method">thenReturn</span>(<span class="variable">product</span>);
+
+        <span class="comment">// When</span>
+        <span class="variable">orderService</span>.<span class="method">processOrder</span>(<span class="string">"order1"</span>);
+
+        <span class="comment">// Then - Testuje kolejność wywołań zamiast końcowego stanu</span>
+        <span class="class-name">InOrder</span> <span class="variable">inOrder</span> = <span class="class-name">inOrder</span>(<span class="variable">mockOrderRepository</span>, <span class="variable">mockProductService</span>, <span class="variable">mockEmailService</span>);
+        <span class="variable">inOrder</span>.<span class="method">verify</span>(<span class="variable">mockOrderRepository</span>).<span class="method">findById</span>(<span class="string">"order1"</span>);
+        <span class="variable">inOrder</span>.<span class="method">verify</span>(<span class="variable">mockProductService</span>).<span class="method">getProduct</span>(<span class="string">"product1"</span>);
+        <span class="variable">inOrder</span>.<span class="method">verify</span>(<span class="variable">mockProductService</span>).<span class="method">updateProduct</span>(<span class="class-name">any</span>(<span class="class-name">Product</span>.<span class="keyword">class</span>));
+        <span class="variable">inOrder</span>.<span class="method">verify</span>(<span class="variable">mockOrderRepository</span>).<span class="method">save</span>(<span class="class-name">any</span>(<span class="class-name">Order</span>.<span class="keyword">class</span>));
+        <span class="variable">inOrder</span>.<span class="method">verify</span>(<span class="variable">mockEmailService</span>).<span class="method">sendProcessingNotification</span>(<span class="class-name">eq</span>(<span class="string">"customer1"</span>), <span class="class-name">any</span>(<span class="class-name">Order</span>.<span class="keyword">class</span>));
+    }
+
+    <span class="comment">// PROBLEM 3: Test testuje za dużo naraz - cały flow</span>
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCompleteFullOrderLifecycle</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Laptop"</span>, <span class="number">1000.0</span>, <span class="number">10</span>);
+        <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"p1"</span>, <span class="number">2</span>)
+        );
+
+        <span class="class-name">when</span>(<span class="variable">mockProductService</span>.<span class="method">getProduct</span>(<span class="string">"p1"</span>)).<span class="method">thenReturn</span>(<span class="variable">product</span>);
+        <span class="class-name">when</span>(<span class="variable">mockOrderRepository</span>.<span class="method">findById</span>(<span class="class-name">anyString</span>())).<span class="method">thenReturn</span>(<span class="class-name">Optional</span>.<span class="method">of</span>(<span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"order1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;())));
+
+        <span class="comment">// When - testuje cały flow w jednym teście</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="variable">orderService</span>.<span class="method">createOrder</span>(<span class="string">"customer1"</span>, <span class="variable">items</span>);
+        <span class="variable">orderService</span>.<span class="method">processOrder</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        <span class="variable">orderService</span>.<span class="method">completeOrder</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+
+        <span class="comment">// Then - za dużo asercji w jednym teście</span>
+        <span class="class-name">verify</span>(<span class="variable">mockEmailService</span>).<span class="method">sendOrderConfirmation</span>(<span class="class-name">anyString</span>(), <span class="class-name">any</span>());
+        <span class="class-name">verify</span>(<span class="variable">mockEmailService</span>).<span class="method">sendProcessingNotification</span>(<span class="class-name">anyString</span>(), <span class="class-name">any</span>());
+        <span class="class-name">verify</span>(<span class="variable">mockEmailService</span>).<span class="method">sendCompletionNotification</span>(<span class="class-name">anyString</span>(), <span class="class-name">any</span>());
+        <span class="class-name">verify</span>(<span class="variable">mockProductService</span>).<span class="method">updateProduct</span>(<span class="class-name">any</span>());
+        <span class="class-name">verify</span>(<span class="variable">mockOrderRepository</span>, <span class="class-name">times</span>(<span class="number">3</span>)).<span class="method">save</span>(<span class="class-name">any</span>());
+    }
+}
+
+<span class="comment">// src/test/java/OrderTest.java</span>
+<span class="keyword">class</span> <span class="class-name">OrderTest</span> {
+    
+    <span class="comment">// PROBLEM 4: Brak testów logiki biznesowej</span>
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCalculateTotalAmountCorrectlyWhenAddingItems</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Product"</span>, <span class="number">10.0</span>, <span class="number">100</span>);
+        
+        <span class="comment">// When</span>
+        <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">2</span>);
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getTotalAmount</span>()).<span class="method">isEqualTo</span>(<span class="number">20.0</span>);
+    }
+
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldThrowExceptionWhenAddingItemWithInsufficientStock</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Product"</span>, <span class="number">10.0</span>, <span class="number">1</span>); <span class="comment">// Only 1 in stock</span>
+        
+        <span class="comment">// When & Then</span>
+        <span class="class-name">assertThatThrownBy</span>(() <span class="operator">-></span> <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">2</span>))
+            .<span class="method">isInstanceOf</span>(<span class="class-name">IllegalStateException</span>.<span class="keyword">class</span>)
+            .<span class="method">hasMessage</span>(<span class="string">"Insufficient stock"</span>);
+    }
+
+    <span class="comment">// BRAKUJE testów dla:</span>
+    <span class="comment">// - applyDiscount logic</span>
+    <span class="comment">// - order status transitions  </span>
+    <span class="comment">// - business rules validation</span>
+    <span class="comment">// - edge cases w calculateTotal()</span>
+}
+
+<span class="comment">// ===== PRZYKŁAD POPRAWNEJ ARCHITEKTURY TESTÓW =====</span>
+
+<span class="comment">// src/test/java/integration/OrderProcessingIntegrationTest.java</span>
+<span class="annotation">@SpringBootTest</span>
+<span class="annotation">@Testcontainers</span>
+<span class="keyword">class</span> <span class="class-name">OrderProcessingIntegrationTest</span> {
+    
+    <span class="annotation">@Autowired</span>
+    <span class="keyword">private</span> <span class="class-name">OrderService</span> <span class="variable">orderService</span>;
+    
+    <span class="annotation">@Autowired</span>
+    <span class="keyword">private</span> <span class="class-name">TestRestTemplate</span> <span class="variable">restTemplate</span>;
+    
+    <span class="annotation">@Container</span>
+    <span class="keyword">static</span> <span class="class-name">PostgreSQLContainer</span>&lt;<span class="operator">?</span>&gt; <span class="variable">postgres</span> = <span class="keyword">new</span> <span class="class-name">PostgreSQLContainer</span>&lt;&gt;(<span class="string">"postgres:13"</span>)
+            .<span class="method">withDatabaseName</span>(<span class="string">"testdb"</span>)
+            .<span class="method">withUsername</span>(<span class="string">"test"</span>)
+            .<span class="method">withPassword</span>(<span class="string">"test"</span>);
+
+    <span class="annotation">@Autowired</span>
+    <span class="keyword">private</span> <span class="class-name">TestEmailService</span> <span class="variable">testEmailService</span>; <span class="comment">// Test double zamiast mocka</span>
+
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCompleteFullOrderLifecycle</span>() {
+        <span class="comment">// Given: Products in database</span>
+        <span class="method">insertTestProduct</span>(<span class="string">"p1"</span>, <span class="string">"Laptop"</span>, <span class="number">1000.0</span>, <span class="number">10</span>);
+        
+        <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"p1"</span>, <span class="number">2</span>)
+        );
+
+        <span class="comment">// When: Create and process order</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="variable">orderService</span>.<span class="method">createOrder</span>(<span class="string">"customer1"</span>, <span class="variable">items</span>);
+        <span class="variable">orderService</span>.<span class="method">processOrder</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        <span class="variable">orderService</span>.<span class="method">completeOrder</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        
+        <span class="comment">// Then: Verify business outcomes</span>
+        <span class="class-name">Order</span> <span class="variable">completedOrder</span> = <span class="variable">orderService</span>.<span class="method">findById</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        <span class="class-name">assertThat</span>(<span class="variable">completedOrder</span>.<span class="method">getStatus</span>()).<span class="method">isEqualTo</span>(<span class="class-name">OrderStatus</span>.<span class="constant">COMPLETED</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">testEmailService</span>.<span class="method">getSentEmails</span>()).<span class="method">hasSize</span>(<span class="number">3</span>); <span class="comment">// confirmation, processing, completion</span>
+        
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="method">getProductFromDatabase</span>(<span class="string">"p1"</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">product</span>.<span class="method">getStock</span>()).<span class="method">isEqualTo</span>(<span class="number">8</span>); <span class="comment">// Stock was reserved</span>
+    }
+
+    <span class="annotation">@Test</span>  
+    <span class="keyword">void</span> <span class="method">shouldHandleOutOfStockScenario</span>() {
+        <span class="comment">// Given: Product with limited stock</span>
+        <span class="method">insertTestProduct</span>(<span class="string">"p1"</span>, <span class="string">"Limited Item"</span>, <span class="number">100.0</span>, <span class="number">1</span>);
+        
+        <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"p1"</span>, <span class="number">2</span>) <span class="comment">// Requesting more than available</span>
+        );
+
+        <span class="comment">// When & Then: Should fail gracefully</span>
+        <span class="class-name">assertThatThrownBy</span>(() <span class="operator">-></span> <span class="variable">orderService</span>.<span class="method">createOrder</span>(<span class="string">"customer1"</span>, <span class="variable">items</span>))
+            .<span class="method">isInstanceOf</span>(<span class="class-name">IllegalStateException</span>.<span class="keyword">class</span>)
+            .<span class="method">hasMessage</span>(<span class="string">"Insufficient stock"</span>);
+            
+        <span class="comment">// Verify no side effects</span>
+        <span class="class-name">assertThat</span>(<span class="variable">testEmailService</span>.<span class="method">getSentEmails</span>()).<span class="method">isEmpty</span>();
+        <span class="class-name">assertThat</span>(<span class="method">getOrdersForCustomer</span>(<span class="string">"customer1"</span>)).<span class="method">isEmpty</span>();
+    }
+
+    <span class="keyword">private</span> <span class="keyword">void</span> <span class="method">insertTestProduct</span>(<span class="type">String</span> <span class="variable">id</span>, <span class="type">String</span> <span class="variable">name</span>, <span class="primitive">double</span> <span class="variable">price</span>, <span class="primitive">int</span> <span class="variable">stock</span>) {
+        <span class="comment">// Helper method to setup test data</span>
+    }
+    
+    <span class="keyword">private</span> <span class="class-name">Product</span> <span class="method">getProductFromDatabase</span>(<span class="type">String</span> <span class="variable">id</span>) {
+        <span class="comment">// Helper method to verify state</span>
+        <span class="keyword">return</span> <span class="keyword">null</span>;
+    }
+    
+    <span class="keyword">private</span> <span class="type">List</span>&lt;<span class="class-name">Order</span>&gt; <span class="method">getOrdersForCustomer</span>(<span class="type">String</span> <span class="variable">customerId</span>) {
+        <span class="comment">// Helper method to verify state</span>
+        <span class="keyword">return</span> <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;();
+    }
+}
+
+<span class="comment">// ===== TEST DOUBLES ZAMIAST MOCKÓW =====</span>
+
+<span class="comment">// src/test/java/doubles/InMemoryOrderRepository.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">InMemoryOrderRepository</span> <span class="keyword">implements</span> <span class="class-name">OrderRepository</span> {
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">Map</span>&lt;<span class="type">String</span>, <span class="class-name">Order</span>&gt; <span class="variable">orders</span> = <span class="keyword">new</span> <span class="class-name">HashMap</span>&lt;&gt;();
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="type">Optional</span>&lt;<span class="class-name">Order</span>&gt; <span class="method">findById</span>(<span class="type">String</span> <span class="variable">id</span>) {
+        <span class="keyword">return</span> <span class="class-name">Optional</span>.<span class="method">ofNullable</span>(<span class="variable">orders</span>.<span class="method">get</span>(<span class="variable">id</span>));
+    }
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">save</span>(<span class="class-name">Order</span> <span class="variable">order</span>) {
+        <span class="variable">orders</span>.<span class="method">put</span>(<span class="variable">order</span>.<span class="method">getId</span>(), <span class="variable">order</span>);
+    }
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="type">List</span>&lt;<span class="class-name">Order</span>&gt; <span class="method">findByCustomerId</span>(<span class="type">String</span> <span class="variable">customerId</span>) {
+        <span class="keyword">return</span> <span class="variable">orders</span>.<span class="method">values</span>().<span class="method">stream</span>()
+            .<span class="method">filter</span>(<span class="variable">order</span> <span class="operator">-></span> <span class="variable">order</span>.<span class="method">getCustomerId</span>().<span class="method">equals</span>(<span class="variable">customerId</span>))
+            .<span class="method">collect</span>(<span class="class-name">Collectors</span>.<span class="method">toList</span>());
+    }
+}
+
+<span class="comment">// src/test/java/doubles/InMemoryProductRepository.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">InMemoryProductRepository</span> <span class="keyword">implements</span> <span class="class-name">ProductRepository</span> {
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">Map</span>&lt;<span class="type">String</span>, <span class="class-name">Product</span>&gt; <span class="variable">products</span> = <span class="keyword">new</span> <span class="class-name">HashMap</span>&lt;&gt;();
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="type">Optional</span>&lt;<span class="class-name">Product</span>&gt; <span class="method">findById</span>(<span class="type">String</span> <span class="variable">id</span>) {
+        <span class="keyword">return</span> <span class="class-name">Optional</span>.<span class="method">ofNullable</span>(<span class="variable">products</span>.<span class="method">get</span>(<span class="variable">id</span>));
+    }
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">save</span>(<span class="class-name">Product</span> <span class="variable">product</span>) {
+        <span class="variable">products</span>.<span class="method">put</span>(<span class="variable">product</span>.<span class="method">getId</span>(), <span class="variable">product</span>);
+    }
+    
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">addProduct</span>(<span class="class-name">Product</span> <span class="variable">product</span>) {
+        <span class="variable">products</span>.<span class="method">put</span>(<span class="variable">product</span>.<span class="method">getId</span>(), <span class="variable">product</span>);
+    }
+}
+
+<span class="comment">// src/test/java/doubles/TestEmailService.java</span>
+<span class="keyword">public</span> <span class="keyword">class</span> <span class="class-name">TestEmailService</span> <span class="keyword">implements</span> <span class="class-name">EmailService</span> {
+    <span class="keyword">private</span> <span class="keyword">final</span> <span class="type">List</span>&lt;<span class="type">String</span>&gt; <span class="variable">sentEmails</span> = <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;();
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">sendOrderConfirmation</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="class-name">Order</span> <span class="variable">order</span>) {
+        <span class="variable">sentEmails</span>.<span class="method">add</span>(<span class="string">"Order confirmation for "</span> <span class="operator">+</span> <span class="variable">customerId</span> <span class="operator">+</span> <span class="string">" - Order "</span> <span class="operator">+</span> <span class="variable">order</span>.<span class="method">getId</span>());
+    }
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">sendProcessingNotification</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="class-name">Order</span> <span class="variable">order</span>) {
+        <span class="variable">sentEmails</span>.<span class="method">add</span>(<span class="string">"Processing notification for "</span> <span class="operator">+</span> <span class="variable">customerId</span> <span class="operator">+</span> <span class="string">" - Order "</span> <span class="operator">+</span> <span class="variable">order</span>.<span class="method">getId</span>());
+    }
+    
+    <span class="annotation">@Override</span>
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">sendCompletionNotification</span>(<span class="type">String</span> <span class="variable">customerId</span>, <span class="class-name">Order</span> <span class="variable">order</span>) {
+        <span class="variable">sentEmails</span>.<span class="method">add</span>(<span class="string">"Completion notification for "</span> <span class="operator">+</span> <span class="variable">customerId</span> <span class="operator">+</span> <span class="string">" - Order "</span> <span class="operator">+</span> <span class="variable">order</span>.<span class="method">getId</span>());
+    }
+    
+    <span class="keyword">public</span> <span class="type">List</span>&lt;<span class="type">String</span>&gt; <span class="method">getSentEmails</span>() {
+        <span class="keyword">return</span> <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;(<span class="variable">sentEmails</span>);
+    }
+    
+    <span class="keyword">public</span> <span class="keyword">void</span> <span class="method">clearEmails</span>() {
+        <span class="variable">sentEmails</span>.<span class="method">clear</span>();
+    }
+}
+
+<span class="comment">// ===== POPRAWIONE TESTY =====</span>
+
+<span class="comment">// src/test/java/domain/OrderTest.java</span>
+<span class="keyword">class</span> <span class="class-name">OrderTest</span> {
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCalculateTotalAmountCorrectlyWhenAddingItems</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Product"</span>, <span class="number">10.0</span>, <span class="number">100</span>);
+        
+        <span class="comment">// When</span>
+        <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">2</span>);
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getTotalAmount</span>()).<span class="method">isEqualTo</span>(<span class="number">20.0</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldUpdateQuantityWhenAddingSameProductTwice</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Product"</span>, <span class="number">10.0</span>, <span class="number">100</span>);
+        
+        <span class="comment">// When</span>
+        <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">2</span>);
+        <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">3</span>);
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getItems</span>()).<span class="method">hasSize</span>(<span class="number">1</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getItems</span>().<span class="method">get</span>(<span class="number">0</span>).<span class="method">getQuantity</span>()).<span class="method">isEqualTo</span>(<span class="number">5</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getTotalAmount</span>()).<span class="method">isEqualTo</span>(<span class="number">50.0</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldApplyDiscountCorrectly</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Product"</span>, <span class="number">100.0</span>, <span class="number">10</span>);
+        <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">1</span>);
+        
+        <span class="comment">// When</span>
+        <span class="variable">order</span>.<span class="method">applyDiscount</span>(<span class="number">20.0</span>); <span class="comment">// 20% discount</span>
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getTotalAmount</span>()).<span class="method">isEqualTo</span>(<span class="number">80.0</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldThrowExceptionForInvalidDiscount</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        
+        <span class="comment">// When & Then</span>
+        <span class="class-name">assertThatThrownBy</span>(() <span class="operator">-></span> <span class="variable">order</span>.<span class="method">applyDiscount</span>(<span class="number">-10</span>))
+            .<span class="method">isInstanceOf</span>(<span class="class-name">IllegalArgumentException</span>.<span class="keyword">class</span>)
+            .<span class="method">hasMessage</span>(<span class="string">"Invalid discount percentage"</span>);
+            
+        <span class="class-name">assertThatThrownBy</span>(() <span class="operator">-></span> <span class="variable">order</span>.<span class="method">applyDiscount</span>(<span class="number">110</span>))
+            .<span class="method">isInstanceOf</span>(<span class="class-name">IllegalArgumentException</span>.<span class="keyword">class</span>)
+            .<span class="method">hasMessage</span>(<span class="string">"Invalid discount percentage"</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldTransitionFromPendingToProcessing</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Product"</span>, <span class="number">10.0</span>, <span class="number">100</span>);
+        <span class="variable">order</span>.<span class="method">addItem</span>(<span class="variable">product</span>, <span class="number">1</span>);
+        
+        <span class="comment">// When</span>
+        <span class="variable">order</span>.<span class="method">process</span>();
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getStatus</span>()).<span class="method">isEqualTo</span>(<span class="class-name">OrderStatus</span>.<span class="constant">PROCESSING</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldNotProcessEmptyOrder</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="keyword">new</span> <span class="class-name">Order</span>(<span class="string">"1"</span>, <span class="string">"customer1"</span>, <span class="keyword">new</span> <span class="class-name">ArrayList</span>&lt;&gt;());
+        
+        <span class="comment">// When & Then</span>
+        <span class="class-name">assertThatThrownBy</span>(() <span class="operator">-></span> <span class="variable">order</span>.<span class="method">process</span>())
+            .<span class="method">isInstanceOf</span>(<span class="class-name">IllegalStateException</span>.<span class="keyword">class</span>)
+            .<span class="method">hasMessage</span>(<span class="string">"Order cannot be processed"</span>);
+    }
+}
+
+<span class="comment">// src/test/java/application/OrderServiceTest.java - SOCIABLE UNIT TESTS</span>
+<span class="keyword">class</span> <span class="class-name">OrderServiceTest</span> {
+    
+    <span class="keyword">private</span> <span class="class-name">OrderService</span> <span class="variable">orderService</span>;
+    <span class="keyword">private</span> <span class="class-name">InMemoryOrderRepository</span> <span class="variable">orderRepository</span>;
+    <span class="keyword">private</span> <span class="class-name">InMemoryProductRepository</span> <span class="variable">productRepository</span>;
+    <span class="keyword">private</span> <span class="class-name">TestEmailService</span> <span class="variable">emailService</span>;
+    <span class="keyword">private</span> <span class="class-name">ProductService</span> <span class="variable">productService</span>;
+    
+    <span class="annotation">@BeforeEach</span>
+    <span class="keyword">void</span> <span class="method">setUp</span>() {
+        <span class="variable">orderRepository</span> = <span class="keyword">new</span> <span class="class-name">InMemoryOrderRepository</span>();
+        <span class="variable">productRepository</span> = <span class="keyword">new</span> <span class="class-name">InMemoryProductRepository</span>();
+        <span class="variable">emailService</span> = <span class="keyword">new</span> <span class="class-name">TestEmailService</span>();
+        <span class="variable">productService</span> = <span class="keyword">new</span> <span class="class-name">ProductService</span>(<span class="variable">productRepository</span>);
+        <span class="variable">orderService</span> = <span class="keyword">new</span> <span class="class-name">OrderService</span>(<span class="variable">orderRepository</span>, <span class="variable">productService</span>, <span class="variable">emailService</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCreateOrderSuccessfully</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Laptop"</span>, <span class="number">1000.0</span>, <span class="number">10</span>);
+        <span class="variable">productRepository</span>.<span class="method">addProduct</span>(<span class="variable">product</span>);
+        
+        <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"p1"</span>, <span class="number">2</span>)
+        );
+        
+        <span class="comment">// When</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="variable">orderService</span>.<span class="method">createOrder</span>(<span class="string">"customer1"</span>, <span class="variable">items</span>);
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getCustomerId</span>()).<span class="method">isEqualTo</span>(<span class="string">"customer1"</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getTotalAmount</span>()).<span class="method">isEqualTo</span>(<span class="number">2000.0</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">order</span>.<span class="method">getStatus</span>()).<span class="method">isEqualTo</span>(<span class="class-name">OrderStatus</span>.<span class="constant">PENDING</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">emailService</span>.<span class="method">getSentEmails</span>()).<span class="method">hasSize</span>(<span class="number">1</span>);
+    }
+    
+    <span class="annotation">@Test</span>
+    <span class="keyword">void</span> <span class="method">shouldCompleteFullOrderLifecycle</span>() {
+        <span class="comment">// Given</span>
+        <span class="class-name">Product</span> <span class="variable">product</span> = <span class="keyword">new</span> <span class="class-name">Product</span>(<span class="string">"p1"</span>, <span class="string">"Laptop"</span>, <span class="number">1000.0</span>, <span class="number">10</span>);
+        <span class="variable">productRepository</span>.<span class="method">addProduct</span>(<span class="variable">product</span>);
+        
+        <span class="type">List</span>&lt;<span class="class-name">OrderItemRequest</span>&gt; <span class="variable">items</span> = <span class="class-name">Arrays</span>.<span class="method">asList</span>(
+            <span class="keyword">new</span> <span class="class-name">OrderItemRequest</span>(<span class="string">"p1"</span>, <span class="number">2</span>)
+        );
+        
+        <span class="comment">// When</span>
+        <span class="class-name">Order</span> <span class="variable">order</span> = <span class="variable">orderService</span>.<span class="method">createOrder</span>(<span class="string">"customer1"</span>, <span class="variable">items</span>);
+        <span class="variable">orderService</span>.<span class="method">processOrder</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        <span class="variable">orderService</span>.<span class="method">completeOrder</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        
+        <span class="comment">// Then</span>
+        <span class="class-name">Order</span> <span class="variable">completedOrder</span> = <span class="variable">orderService</span>.<span class="method">findById</span>(<span class="variable">order</span>.<span class="method">getId</span>());
+        <span class="class-name">assertThat</span>(<span class="variable">completedOrder</span>.<span class="method">getStatus</span>()).<span class="method">isEqualTo</span>(<span class="class-name">OrderStatus</span>.<span class="constant">COMPLETED</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">emailService</span>.<span class="method">getSentEmails</span>()).<span class="method">hasSize</span>(<span class="number">3</span>);
+        
+        <span class="class-name">Product</span> <span class="variable">updatedProduct</span> = <span class="variable">productService</span>.<span class="method">getProduct</span>(<span class="string">"p1"</span>);
+        <span class="class-name">assertThat</span>(<span class="variable">updatedProduct</span>.<span class="method">getStock</span>()).<span class="method">isEqualTo</span>(<span class="number">8</span>); <span class="comment">// Stock was reserved</span>
+    }
+}
+
+<span class="comment">/*</span>
+<span class="summary-header">PODSUMOWANIE:</span>
+
+<span class="highlight-comment">PROBLEMY W ORYGINALNYCH TESTACH:</span>
+<span class="summary-item">1. ZBYT DUŻO MOCKÓW - testowanie implementacji zamiast zachowania</span>
+<span class="summary-item">2. TESTY TESTUJĄ ZA DUŻO NARAZ - jeden test sprawdza całą funkcjonalność  </span>
+<span class="summary-item">3. BRAK TESTÓW LOGIKI BIZNESOWEJ - domeny nie są testowane wystarczająco</span>
+<span class="summary-item">4. TESTOWANIE SZCZEGÓŁÓW IMPLEMENTACJI - sprawdzanie wywołań metod</span>
+<span class="summary-item">5. BRAK TESTÓW INTEGRACYJNYCH - nie ma testów end-to-end</span>
+
+<span class="summary-header">ROZWIĄZANIA:</span>
+<span class="summary-item">- Sociable unit tests dla domeny (bez mocków)</span>
+<span class="summary-item">- Integration tests z prawdziwymi implementacjami</span>
+<span class="summary-item">- Test doubles zamiast mocków dla zewnętrznych zależności</span>
+<span class="summary-item">- Fokus na scenariusze biznesowe i końcowe rezultaty</span>
+<span class="summary-item">- Testowanie zachowań, nie implementacji</span>
+<span class="comment">*/</span>
+</code></pre>
+</body>
+</html>
