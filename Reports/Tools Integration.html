@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integracja narzędzi testowych</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #007acc;
+            margin-top: 30px;
+        }
+        
+        h3 {
+            color: #555;
+        }
+        
+        .code {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007acc;
+            font-family: Courier, monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .command {
+            background: #2d3748;
+            color: #68d391;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: Courier, monospace;
+            margin: 10px 0;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+        }
+        
+        ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Integracja narzędzi testowych</h1>
+        <p><strong>JaCoCo • PIT • SonarQube</strong></p>
+
+        <h2>Kompletny pom.xml</h2>
+        <div class="code"><pre>
+&lt;build&gt;
+    &lt;plugins&gt;
+        &lt;!-- JaCoCo --&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.jacoco&lt;/groupId&gt;
+            &lt;artifactId&gt;jacoco-maven-plugin&lt;/artifactId&gt;
+            &lt;version&gt;0.8.8&lt;/version&gt;
+            &lt;executions&gt;
+                &lt;execution&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;prepare-agent&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;report&lt;/id&gt;
+                    &lt;phase&gt;test&lt;/phase&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;report&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+            &lt;/executions&gt;
+        &lt;/plugin&gt;
+
+        &lt;!-- PIT --&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.pitest&lt;/groupId&gt;
+            &lt;artifactId&gt;pitest-maven&lt;/artifactId&gt;
+            &lt;version&gt;1.11.0&lt;/version&gt;
+            &lt;configuration&gt;
+                &lt;targetClasses&gt;
+                    &lt;param&gt;com.example.*&lt;/param&gt;
+                &lt;/targetClasses&gt;
+                &lt;targetTests&gt;
+                    &lt;param&gt;com.example.*Test&lt;/param&gt;
+                &lt;/targetTests&gt;
+            &lt;/configuration&gt;
+        &lt;/plugin&gt;
+
+        &lt;!-- SonarQube --&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.sonarsource.scanner.maven&lt;/groupId&gt;
+            &lt;artifactId&gt;sonar-maven-plugin&lt;/artifactId&gt;
+            &lt;version&gt;3.9.1.2184&lt;/version&gt;
+        &lt;/plugin&gt;
+    &lt;/plugins&gt;
+&lt;/build&gt;
+
+&lt;properties&gt;
+    &lt;sonar.host.url&gt;http://localhost:9000&lt;/sonar.host.url&gt;
+    &lt;sonar.coverage.jacoco.xmlReportPaths&gt;target/site/jacoco/jacoco.xml&lt;/sonar.coverage.jacoco.xmlReportPaths&gt;
+&lt;/properties&gt;
+        </pre></div>
+
+        <h2>Uruchomienie analiz</h2>
+
+        <h3>1. JaCoCo (Pokrycie kodu)</h3>
+        <div class="command">mvn clean test jacoco:report</div>
+        <p><strong>Wynik:</strong> target/site/jacoco/index.html</p>
+
+        <h3>2. PIT (Mutation Testing)</h3>
+        <div class="command">mvn org.pitest:pitest-maven:mutationCoverage</div>
+        <p><strong>Wynik:</strong> target/pit-reports/*/index.html</p>
+
+        <h3>3. SonarQube (Analiza jakości)</h3>
+        <div class="command">mvn sonar:sonar</div>
+        <p><strong>Wynik:</strong> http://localhost:9000</p>
+
+        <div class="info-box">
+            <strong>Wszystkie razem:</strong><br>
+            <code>mvn clean test jacoco:report org.pitest:pitest-maven:mutationCoverage sonar:sonar</code>
+        </div>
+
+        <h2>Sprawdzenie wyników</h2>
+        
+        <table>
+            <tr>
+                <th>Narzędzie</th>
+                <th>Lokalizacja</th>
+                <th>Cel</th>
+            </tr>
+            <tr>
+                <td>JaCoCo</td>
+                <td>target/site/jacoco/index.html</td>
+                <td>Pokrycie kodu > 80%</td>
+            </tr>
+            <tr>
+                <td>PIT</td>
+                <td>target/pit-reports/*/index.html</td>
+                <td>Mutation Score > 70%</td>
+            </tr>
+            <tr>
+                <td>SonarQube</td>
+                <td>http://localhost:9000</td>
+                <td>Quality Gate = Passed</td>
+            </tr>
+        </table>
+
+        <h2>Metryki do monitorowania</h2>
+        <ul>
+            <li><strong>JaCoCo:</strong> Line Coverage > 80%, Branch Coverage > 70%</li>
+            <li><strong>PIT:</strong> Mutation Score > 70%, Test Strength > 70%</li>
+            <li><strong>SonarQube:</strong> Quality Gate = Passed, Technical Debt < 5%</li>
+        </ul>
+
+        <h2>Szybka konfiguracja dodatkowa</h2>
+
+        <h3>Wykluczenia dla PIT</h3>
+        <div class="code">
+&lt;configuration&gt;
+    &lt;excludedClasses&gt;
+        &lt;param&gt;com.example.config.*&lt;/param&gt;
+        &lt;param&gt;*Application&lt;/param&gt;
+    &lt;/excludedClasses&gt;
+    &lt;threads&gt;4&lt;/threads&gt;
+&lt;/configuration&gt;
+        </div>
+
+        <h3>Token SonarQube</h3>
+        <p>1. Zaloguj się do http://localhost:9000</p>
+        <p>2. Idź do: User → My Account → Security</p>
+        <p>3. Wygeneruj token i dodaj do properties:</p>
+        <div class="code">&lt;sonar.login&gt;your-token&lt;/sonar.login&gt;</div>
+    </div>
+</body>
+</html>
